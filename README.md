@@ -1,6 +1,6 @@
 # 4DX Cinema Experience | WebXR & PS VR2 Portal
 
-A futuristic web-based 4DX cinema simulator with haptic feedback simulation, seat selection, movie browsing, and experimental WebXR / Three.js VR theater mode (aimed at PS VR2 / WebXR headsets).
+A futuristic web-based 4DX cinema simulator with haptic feedback simulation, seat selection, movie browsing, and a proper **WebXR immersive theater** designed for PS VR2 / WebXR-compatible headsets.
 
 ## Features
 
@@ -8,36 +8,41 @@ A futuristic web-based 4DX cinema simulator with haptic feedback simulation, sea
 - **Environmental effects** – Particle systems for water spray & wind, device vibration (haptics) where supported
 - **Movie showcase** – Filterable grid of 4DX-enhanced films with effect tags
 - **Seat reservation** – Interactive theater map with Standard vs 4DX Prime seats and live price calculation
-- **WebXR / VR Mode** – Three.js powered virtual cinema screen (enter via “Launch PS VR2 Mode”)
+- **PS VR2 / WebXR Immersive Mode**
+  - Full `immersive-vr` session request
+  - Cinema environment (screen, floor, walls, seat rows)
+  - Dual controller support with visual rays + grips
+  - Haptic feedback via controller actuators / gamepad vibration (Sense controllers)
+  - `local-floor` reference space (ideal for seated experiences)
+  - Graceful fallback UI when WebXR is unavailable
 
 ## Tech Stack
 
 - Vanilla HTML / CSS / JS
 - Tailwind CSS (CDN)
-- Three.js (r128) for WebXR scene
+- Three.js (r128) + WebXR
 - Font Awesome icons
-- Device Vibration API for haptics
+- Device Vibration API + WebXR haptic actuators
 
 ## Quick Start
 
-Just open `index.html` in a modern browser (Chrome / Edge recommended for WebXR & vibration).
+Open `index.html` in a modern browser (Chrome or Edge recommended).
 
-For local development:
+For local development (required for WebXR on most browsers):
 
 ```bash
-# any static server
 npx serve .
 # or
 python -m http.server 8000
 ```
 
-Then visit `http://localhost:8000`.
+Visit `http://localhost:8000` and click **Launch PS VR2 Mode**.
 
-## Notes
+## PS VR2 Notes
 
-- Full WebXR session requires a compatible headset / browser and secure context (HTTPS or localhost).
-- Haptic vibration works on mobile devices that support the Vibration API.
-- This is a front-end demo / prototype — no backend booking system is included.
+- Official PlayStation browser WebXR support for PS VR2 is limited / evolving. This experience uses the standard WebXR API so it works on any compatible headset or PC browser with a VR runtime.
+- When running on a system that exposes PS VR2 Sense controllers via WebXR (or streaming solutions), trigger / squeeze inputs fire haptic pulses.
+- Best results: Chrome/Edge + WebXR-capable runtime, or a headset that supports immersive-vr sessions.
 
 ## License
 
