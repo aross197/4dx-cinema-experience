@@ -155,6 +155,14 @@
                         <div class="text-[10px] text-gray-400">Vibration + wind bursts</div>
                     </div>
                 </button>
+
+                <button onclick="triggerEffect('heli_rescue')" class="p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl flex items-center space-x-3 text-left transition-all hover:border-brand-cyan col-span-2">
+                    <div class="p-2 bg-green-500/20 text-green-400 rounded-lg"><i class="fa-solid fa-helicopter"></i></div>
+                    <div>
+                        <div class="text-sm font-bold text-white">Helicopter Rescue Mission</div>
+                        <div class="text-[10px] text-gray-400">Rotor wash • turbulence • alert pulses</div>
+                    </div>
+                </button>
             </div>
 
             <!-- Manual Triggers -->
@@ -341,6 +349,15 @@
                 runtime: '166 min',
                 poster: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=600&q=80',
                 effects: ['Worm Rumble', 'Dust Storm', 'High Force Acceleration']
+            },
+            {
+                id: 'heli_rescue',
+                title: 'Black Hawk Extraction',
+                genre: 'action',
+                rating: 'R',
+                runtime: '118 min',
+                poster: 'https://images.unsplash.com/photo-1540962351504-03099fad1ee9?auto=format&fit=crop&w=600&q=80',
+                effects: ['Rotor Wash', 'Turbulence Roll', 'Alert Pulse']
             }
         ];
 
@@ -545,11 +562,22 @@
                 seat.style.transform = 'translate(5px, 5px)';
                 triggerVibration([100, 100, 100, 100, 100, 100]);
                 triggerWindEffect();
+            } else if (preset === 'heli_rescue') {
+                // Helicopter rescue: strong continuous rotor vibration + turbulence rolls + rotor wash wind
+                seat.style.transform = 'rotate(-8deg) translateY(-12px) scale(1.03)';
+                triggerVibration([60, 40, 80, 40, 120, 50, 200, 80, 60, 40, 100, 60, 150]);
+                triggerWindEffect();
+                showHapticBadge('ROTOR WASH • TURBULENCE');
+                // Secondary turbulence kick after a short delay
+                setTimeout(() => {
+                    seat.style.transform = 'rotate(10deg) translateY(8px)';
+                    triggerVibration([150, 60, 90, 50, 180]);
+                }, 700);
             }
 
             setTimeout(() => {
                 seat.style.transform = 'rotate(0deg) translateY(0px) scale(1)';
-            }, 1200);
+            }, 1600);
         }
 
         // ============================================================
