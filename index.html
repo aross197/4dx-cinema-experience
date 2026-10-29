@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>4DX Cinema Experience | WebXR & PS VR2 Portal</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            red: '#E50914',
+                            cyan: '#00F0FF',
+                            purple: '#7000FF',
+                            dark: '#0A0A0E',
+                            card: '#12121A'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome & Lucide Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Three.js for WebXR 3D VR Theater -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body {
+            background-color: #0A0A0E;
+            color: #F3F4F6;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            overflow-x: hidden;
+        }
+        .glow-red { box-shadow: 0 0 20px rgba(229, 9, 20, 0.4); }
+        .glow-cyan { box-shadow: 0 0 20px rgba(0, 240, 255, 0.4); }
+        .glass-panel {
+            background: rgba(18, 18, 26, 0.75);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0A0A0E; }
+        ::-webkit-scrollbar-thumb { background: #262636; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #00F0FF; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between selection:bg-brand-cyan selection:text-black">
+
+    <!-- TOP NAVIGATION BAR -->
+    <header class="sticky top-0 z-50 glass-panel border-b border-white/10 px-6 py-4 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <div class="bg-gradient-to-r from-brand-red to-brand-purple p-2 rounded-lg text-white font-black text-xl tracking-tighter">
+                4DX
+            </div>
+            <span class="text-xl font-bold tracking-widest text-white uppercase hidden sm:inline">Cinema <span class="text-brand-cyan text-sm">VR2</span></span>
+        </div>
+
+        <nav class="hidden md:flex items-center space-x-8 text-sm font-semibold text-gray-300">
+            <a href="#simulator" class="hover:text-brand-cyan transition-colors">4DX Seat Simulator</a>
+            <a href="#movies" class="hover:text-brand-cyan transition-colors">Featured Movies</a>
+            <a href="#booking" class="hover:text-brand-cyan transition-colors">Seat Reservation</a>
+            <a href="#vr-mode" class="hover:text-brand-cyan transition-colors">PS VR2 WebXR</a>
+        </nav>
+
+        <div class="flex items-center space-x-3">
+            <button id="vr-enter-btn" onclick="toggleVRMode()" class="flex items-center space-x-2 bg-gradient-to-r from-brand-cyan to-brand-purple hover:opacity-90 text-black font-bold px-4 py-2 rounded-lg shadow-lg transition-all transform hover:scale-105">
+                <i class="fa-solid font-black fa-vr-cardboard text-lg"></i>
+                <span id="vr-btn-text">Launch PS VR2 Mode</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- HERO / SIMULATOR SECTION -->
+    <section id="simulator" class="relative py-12 px-6 max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+        <!-- Interactive Seat Motion & Effect Simulator Canvas -->
+        <div class="lg:col-span-7 glass-panel rounded-2xl p-6 relative overflow-hidden flex flex-col items-center justify-center min-h-[420px]">
+            <!-- Canvas for particle/environmental effects -->
+            <canvas id="effects-canvas" class="absolute inset-0 w-full h-full pointer-events-none z-10"></canvas>
+            
+            <!-- Haptic Alert Overlay -->
+            <div id="haptic-badge" class="absolute top-4 left-4 z-20 bg-brand-cyan/20 border border-brand-cyan text-brand-cyan text-xs font-mono px-3 py-1.5 rounded-full flex items-center space-x-2 opacity-0 transition-opacity">
+                <i class="fa-solid fa-waveform animate-pulse"></i>
+                <span id="haptic-text">HAPTIC TRIGGER ACTIVE</span>
+            </div>
+
+            <!-- Virtual 4DX Dynamic Seat Graphic -->
+            <div id="seat-platform" class="relative z-0 transition-transform duration-300 ease-out transform hover:scale-105 my-8">
+                <div id="seat-graphics" class="relative w-64 h-64 mx-auto flex items-center justify-center transition-transform duration-100">
+                    <!-- Outer Motion Base -->
+                    <div class="absolute inset-0 rounded-full border-2 border-brand-cyan/30 animate-ping opacity-25"></div>
+                    <div class="absolute inset-4 rounded-full border border-brand-purple/40"></div>
+                    
+                    <!-- Seat Icon Representation -->
+                    <div class="bg-gradient-to-b from-gray-800 to-gray-900 border-2 border-brand-red/60 p-8 rounded-3xl shadow-2xl relative text-center">
+                        <i class="fa-solid fa-couch text-6xl text-brand-red mb-2 drop-shadow-lg"></i>
+                        <div class="text-xs font-mono text-gray-400">4DX-PRIME-CHAIR</div>
+                        
+                        <!-- Mini Vent Indicators -->
+                        <div class="flex justify-between mt-4 text-[10px] text-gray-500 font-mono">
+                            <span id="vent-left"><i class="fa-solid fa-wind"></i> AIR</span>
+                            <span id="vent-water"><i class="fa-solid fa-droplet"></i> MIST</span>
+                            <span id="vent-right">TILT <i class="fa-solid fa-arrows-up-down-left-right"></i></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <p class="text-xs text-gray-400 font-mono text-center z-20">Click presets below or connect PS VR2 Sense controllers to test haptic motor feedback.</p>
+        </div>
+
+        <!-- Simulator Control Dashboard -->
+        <div class="lg:col-span-5 glass-panel rounded-2xl p-6 flex flex-col justify-between space-y-6">
+            <div>
+                <h2 class="text-2xl font-black tracking-tight text-white flex items-center gap-2">
+                    <i class="fa-solid fa-sliders text-brand-cyan"></i> 4DX Haptic Control Room
+                </h2>
+                <p class="text-sm text-gray-400 mt-1">Simulate environmental telemetry and physical transducer feedback directly on your device and VR headset.</p>
+            </div>
+
+            <!-- Preset Buttons -->
+            <div class="grid grid-cols-2 gap-3">
+                <button onclick="triggerEffect('topgun')" class="p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl flex items-center space-x-3 text-left transition-all hover:border-brand-cyan">
+                    <div class="p-2 bg-blue-500/20 text-blue-400 rounded-lg"><i class="fa-solid fa-plane-jet"></i></div>
+                    <div>
+                        <div class="text-sm font-bold text-white">Top Gun Jet Dive</div>
+                        <div class="text-[10px] text-gray-400">High pitch + g-force rumble</div>
+                    </div>
+                </button>
+
+                <button onclick="triggerEffect('avatar')" class="p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl flex items-center space-x-3 text-left transition-all hover:border-brand-cyan">
+                    <div class="p-2 bg-cyan-500/20 text-cyan-400 rounded-lg"><i class="fa-solid fa-cloud-rain"></i></div>
+                    <div>
+                        <div class="text-sm font-bold text-white">Avatar Mist Spray</div>
+                        <div class="text-[10px] text-gray-400">Water spray + ocean gust</div>
+                    </div>
+                </button>
+
+                <button onclick="triggerEffect('oppenheimer')" class="p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl flex items-center space-x-3 text-left transition-all hover:border-brand-cyan">
+                    <div class="p-2 bg-red-500/20 text-red-400 rounded-lg"><i class="fa-solid fa-explosion"></i></div>
+                    <div>
+                        <div class="text-sm font-bold text-white">Oppenheimer Blast</div>
+                        <div class="text-[10px] text-gray-400">Subwoofer pulse & flash</div>
+                    </div>
+                </button>
+
+                <button onclick="triggerEffect('madmax')" class="p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl flex items-center space-x-3 text-left transition-all hover:border-brand-cyan">
+                    <div class="p-2 bg-amber-500/20 text-amber-400 rounded-lg"><i class="fa-solid fa-fire"></i></div>
+                    <div>
+                        <div class="text-sm font-bold text-white">Mad Max Heat Wave</div>
+                        <div class="text-[10px] text-gray-400">Vibration + wind bursts</div>
+                    </div>
+                </button>
+            </div>
+
+            <!-- Manual Triggers -->
+            <div class="space-y-3 pt-2 border-t border-white/10">
+                <div class="text-xs font-bold uppercase tracking-wider text-gray-400">Manual Environmental Controllers</div>
+                <div class="flex gap-2">
+                    <button onclick="triggerWaterEffect()" class="flex-1 py-2 bg-blue-600/30 hover:bg-blue-600/50 border border-blue-500/40 rounded-lg text-xs font-semibold text-blue-200">
+                        <i class="fa-solid fa-droplet mr-1"></i> Water Spray
+                    </button>
+                    <button onclick="triggerWindEffect()" class="flex-1 py-2 bg-cyan-600/30 hover:bg-cyan-600/50 border border-cyan-500/40 rounded-lg text-xs font-semibold text-cyan-200">
+                        <i class="fa-solid fa-wind mr-1"></i> Wind Gust
+                    </button>
+                    <button onclick="triggerVibration(800)" class="flex-1 py-2 bg-purple-600/30 hover:bg-purple-600/50 border border-purple-500/40 rounded-lg text-xs font-semibold text-purple-200">
+                        <i class="fa-solid fa-vibe mr-1"></i> Seat Pulse
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- MOVIES SHOWCASE SECTION -->
+    <section id="movies" class="py-12 px-6 max-w-7xl mx-auto w-full">
+        <div class="flex flex-col md:flex-row md:items-end justify-between mb-8">
+            <div>
+                <h2 class="text-3xl font-black text-white tracking-tight">Now Showing in 4DX</h2>
+                <p class="text-gray-400 text-sm mt-1">Blockbuster movies remastered with full 4DX motion and environmental telemetry tracks.</p>
+            </div>
+            
+            <!-- Category Filter Tabs -->
+            <div class="flex items-center space-x-2 mt-4 md:mt-0 overflow-x-auto pb-2">
+                <button onclick="filterMovies('all')" class="genre-btn active px-4 py-2 bg-brand-cyan text-black font-bold text-xs rounded-full">All</button>
+                <button onclick="filterMovies('action')" class="genre-btn px-4 py-2 bg-white/5 hover:bg-white/10 text-gray-300 font-bold text-xs rounded-full">Action</button>
+                <button onclick="filterMovies('sci-fi')" class="genre-btn px-4 py-2 bg-white/5 hover:bg-white/10 text-gray-300 font-bold text-xs rounded-full">Sci-Fi</button>
+                <button onclick="filterMovies('animation')" class="genre-btn px-4 py-2 bg-white/5 hover:bg-white/10 text-gray-300 font-bold text-xs rounded-full">Animation</button>
+            </div>
+        </div>
+
+        <!-- Movie Cards Grid -->
+        <div id="movie-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Dynamically Rendered Movie Cards -->
+        </div>
+    </section>
+
+    <!-- RESERVATION & SEAT PICKER SECTION -->
+    <section id="booking" class="py-12 px-6 max-w-7xl mx-auto w-full">
+        <div class="glass-panel rounded-3xl p-6 lg:p-10 border border-white/10 grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <!-- Seat Selection Map -->
+            <div class="lg:col-span-8 flex flex-col items-center">
+                <h3 class="text-2xl font-bold text-white mb-2 self-start"><i class="fa-solid fa-ticket text-brand-red"></i> 4DX Theater Seat Selection</h3>
+                <p class="text-sm text-gray-400 mb-6 self-start">Select your preferred motion seat. Gold seats represent 4DX Prime Motion Zones.</p>
+
+                <!-- Curved Curved Theater Screen Visual -->
+                <div class="w-3/4 h-3 bg-gradient-to-r from-transparent via-brand-cyan to-transparent rounded-full mb-2 shadow-[0_0_15px_rgba(0,240,255,0.8)]"></div>
+                <div class="text-[10px] uppercase font-mono tracking-widest text-gray-500 mb-8">4DX Curved Screen</div>
+
+                <!-- Seat Grid -->
+                <div id="seat-grid" class="grid grid-cols-8 gap-2 sm:gap-3 mb-6">
+                    <!-- Seats generated via JS -->
+                </div>
+
+                <!-- Legend -->
+                <div class="flex items-center space-x-6 text-xs text-gray-400">
+                    <div class="flex items-center space-x-2"><div class="w-4 h-4 rounded bg-gray-700"></div><span>Standard 4DX</span></div>
+                    <div class="flex items-center space-x-2"><div class="w-4 h-4 rounded bg-amber-500"></div><span>4DX Prime Zone</span></div>
+                    <div class="flex items-center space-x-2"><div class="w-4 h-4 rounded bg-brand-cyan"></div><span>Selected</span></div>
+                    <div class="flex items-center space-x-2"><div class="w-4 h-4 rounded bg-gray-900 border border-red-500/30 opacity-40"></div><span>Occupied</span></div>
+                </div>
+            </div>
+
+            <!-- Booking Summary Panel -->
+            <div class="lg:col-span-4 bg-black/40 rounded-2xl p-6 border border-white/5 flex flex-col justify-between">
+                <div>
+                    <h4 class="text-lg font-bold text-white border-b border-white/10 pb-3 mb-4">Booking Details</h4>
+                    
+                    <div class="space-y-4 text-sm">
+                        <div>
+                            <span class="text-xs text-gray-400 block">Selected Film</span>
+                            <span id="summary-movie" class="font-bold text-brand-cyan">Avatar: The Way of Water</span>
+                        </div>
+
+                        <div>
+                            <span class="text-xs text-gray-400 block">Showtime & Format</span>
+                            <span class="font-semibold text-white">Today at 7:30 PM — 4DX 3D + Haptics</span>
+                        </div>
+
+                        <div>
+                            <span class="text-xs text-gray-400 block">Selected Seats</span>
+                            <span id="summary-seats" class="font-semibold text-white">None selected</span>
+                        </div>
+
+                        <div class="pt-4 border-t border-white/10 flex justify-between items-center">
+                            <span class="text-gray-300 font-medium">Total Price</span>
+                            <span id="summary-price" class="text-2xl font-black text-brand-red">$0.00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <button onclick="processBooking()" class="w-full mt-6 py-4 bg-gradient-to-r from-brand-red to-brand-purple hover:opacity-90 font-bold text-white rounded-xl shadow-lg transition-all transform hover:scale-[1.02]">
+                    Confirm 4DX Reservation
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- HIDDEN WEBXR THREE.JS CONTAINER FOR PS VR2 HEASET OUTPUT -->
+    <div id="vr-container" class="fixed inset-0 z-50 bg-black hidden flex-col items-center justify-center">
+        <button onclick="toggleVRMode()" class="absolute top-6 right-6 z-50 bg-white/20 hover:bg-white/30 text-white font-bold px-4 py-2 rounded-lg">
+            Exit VR Mode
+        </button>
+        <div id="vr-canvas-holder" class="w-full h-full"></div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="glass-panel border-t border-white/10 py-6 px-6 text-center text-xs text-gray-500">
+        <p>© 2026 4DX Cinema Experience — Powered by WebXR, Three.js & Haptic Feedback Telemetry.</p>
+    </footer>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // MOVIES DATASET
+        const movies = [
+            {
+                id: 'avatar',
+                title: 'Avatar: The Way of Water',
+                genre: 'sci-fi',
+                rating: 'PG-13',
+                runtime: '192 min',
+                poster: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=600&q=80',
+                effects: ['Water Jet', 'Ocean Gust', 'Sub-tilt']
+            },
+            {
+                id: 'topgun',
+                title: 'Top Gun: Maverick',
+                genre: 'action',
+                rating: 'PG-13',
+                runtime: '130 min',
+                poster: 'https://images.unsplash.com/photo-1519074069444-1ba4e21a22a3?auto=format&fit=crop&w=600&q=80',
+                effects: ['High Pitch Roll', 'Afterburner Wind', 'Engine Rumble']
+            },
+            {
+                id: 'oppenheimer',
+                title: 'Oppenheimer',
+                genre: 'action',
+                rating: 'R',
+                runtime: '180 min',
+                poster: 'https://images.unsplash.com/photo-1440404653325-ab127d49abc1?auto=format&fit=crop&w=600&q=80',
+                effects: ['Subwoofer Blast', 'Strobe Flash', 'Heat Pulse']
+            },
+            {
+                id: 'madmax',
+                title: 'Mad Max: Fury Road',
+                genre: 'action',
+                rating: 'R',
+                runtime: '120 min',
+                poster: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=600&q=80',
+                effects: ['Rough Vibration', 'Sand Wind', 'Pyrotechnic Fog']
+            },
+            {
+                id: 'spiderverse',
+                title: 'Spider-Man: Across the Spider-Verse',
+                genre: 'animation',
+                rating: 'PG',
+                runtime: '140 min',
+                poster: 'https://images.unsplash.com/photo-1635863138275-d9b33299680b?auto=format&fit=crop&w=600&q=80',
+                effects: ['Swing Freefall', 'Dimension Strobe', 'Haptic Tap']
+            },
+            {
+                id: 'dune2',
+                title: 'Dune: Part Two',
+                genre: 'sci-fi',
+                rating: 'PG-13',
+                runtime: '166 min',
+                poster: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=600&q=80',
+                effects: ['Worm Rumble', 'Dust Storm', 'High Force Acceleration']
+            }
+        ];
+
+        let selectedMovie = movies[0];
+        let selectedSeats = [];
+        const SEAT_PRICE_STANDARD = 22.50;
+        const SEAT_PRICE_PRIME = 28.00;
+
+        // RENDER MOVIES
+        function renderMovies(filter = 'all') {
+            const grid = document.getElementById('movie-grid');
+            grid.innerHTML = '';
+
+            const filtered = filter === 'all' ? movies : movies.filter(m => m.genre === filter);
+
+            filtered.forEach(m => {
+                const card = document.createElement('div');
+                card.className = 'glass-panel rounded-2xl overflow-hidden hover:border-brand-cyan transition-all duration-300 group flex flex-col justify-between';
+                card.innerHTML = `
+                    <div>
+                        <div class="relative h-64 overflow-hidden">
+                            <img src="${m.poster}" alt="${m.title}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                            <div class="absolute inset-0 bg-gradient-to-t from-brand-card via-transparent to-transparent"></div>
+                            <span class="absolute top-3 right-3 bg-black/60 text-brand-cyan text-[10px] font-mono font-bold px-2.5 py-1 rounded-full border border-brand-cyan/30">${m.rating}</span>
+                        </div>
+                        <div class="p-5">
+                            <h3 class="text-xl font-bold text-white group-hover:text-brand-cyan transition-colors">${m.title}</h3>
+                            <div class="text-xs text-gray-400 mt-1 font-mono">${m.runtime} • ${m.genre.toUpperCase()}</div>
+                            
+                            <div class="flex flex-wrap gap-1.5 mt-4">
+                                ${m.effects.map(e => `<span class="bg-white/5 border border-white/10 text-[10px] text-gray-300 px-2 py-0.5 rounded-md"><i class="fa-solid fa-bolt text-brand-cyan text-[8px] mr-1"></i>${e}</span>`).join('')}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-5 pt-0">
+                        <button onclick="selectMovie('${m.id}')" class="w-full py-2.5 bg-white/10 hover:bg-brand-cyan hover:text-black font-bold text-xs rounded-xl transition-all">
+                            Select For Reservation
+                        </button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function filterMovies(genre) {
+            document.querySelectorAll('.genre-btn').forEach(btn => {
+                btn.classList.remove('bg-brand-cyan', 'text-black');
+                btn.classList.add('bg-white/5', 'text-gray-300');
+            });
+            event.target.classList.add('bg-brand-cyan', 'text-black');
+            renderMovies(genre);
+        }
+
+        function selectMovie(id) {
+            selectedMovie = movies.find(m => m.id === id);
+            document.getElementById('summary-movie').innerText = selectedMovie.title;
+            document.getElementById('booking').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // GENERATE SEAT GRID
+        function generateSeats() {
+            const grid = document.getElementById('seat-grid');
+            grid.innerHTML = '';
+            
+            // 5 rows, 8 cols
+            for (let r = 0; r < 5; r++) {
+                for (let c = 0; c < 8; c++) {
+                    const seatId = `${String.fromCharCode(65 + r)}${c + 1}`;
+                    const isPrime = r === 2 || r === 3; // Middle rows prime
+                    const isOccupied = (r === 1 && c === 3) || (r === 3 && c === 5);
+
+                    const btn = document.createElement('button');
+                    btn.className = `w-8 h-8 sm:w-10 sm:h-10 rounded-lg text-[10px] font-bold font-mono transition-all flex items-center justify-center ${
+                        isOccupied 
+                            ? 'bg-gray-900 border border-red-500/20 text-gray-600 cursor-not-allowed' 
+                            : isPrime 
+                                ? 'bg-amber-500/20 border border-amber-500/40 text-amber-300 hover:bg-amber-500 hover:text-black' 
+                                : 'bg-gray-800 border border-white/10 text-gray-300 hover:bg-brand-cyan hover:text-black'
+                    }`;
+                    btn.innerText = seatId;
+                    
+                    if (!isOccupied) {
+                        btn.onclick = () => toggleSeat(seatId, isPrime, btn);
+                    }
+                    grid.appendChild(btn);
+                }
+            }
+        }
+
+        function toggleSeat(id, isPrime, element) {
+            const index = selectedSeats.findIndex(s => s.id === id);
+            if (index > -1) {
+                selectedSeats.splice(index, 1);
+                element.classList.remove('bg-brand-cyan', 'text-black');
+            } else {
+                selectedSeats.push({ id, price: isPrime ? SEAT_PRICE_PRIME : SEAT_PRICE_STANDARD });
+                element.classList.add('bg-brand-cyan', 'text-black');
+            }
+            updateBookingSummary();
+        }
+
+        function updateBookingSummary() {
+            const seatsText = selectedSeats.map(s => s.id).join(', ') || 'None selected';
+            const totalPrice = selectedSeats.reduce((sum, s) => sum + s.price, 0);
+
+            document.getElementById('summary-seats').innerText = seatsText;
+            document.getElementById('summary-price').innerText = `$${totalPrice.toFixed(2)}`;
+        }
+
+        function processBooking() {
+            if (selectedSeats.length === 0) {
+                alert('Please select at least one seat.');
+                return;
+            }
+            alert(`Reservation Confirmed for ${selectedMovie.title}!\nSeats: ${selectedSeats.map(s => s.id).join(', ')}\nTotal: ${document.getElementById('summary-price').innerText}`);
+        }
+
+        // CANVAS PARTICLES & ENVIRONMENTAL EFFECTS
+        const canvas = document.getElementById('effects-canvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+
+        function resizeCanvas() {
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        function createParticles(type) {
+            particles = [];
+            const count = type === 'water' ? 80 : 50;
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    speedY: Math.random() * 5 + 2,
+                    speedX: (Math.random() - 0.5) * 3,
+                    radius: Math.random() * 3 + 1,
+                    color: type === 'water' ? '#00F0FF' : '#E50914'
+                });
+            }
+        }
+
+        function animateCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach((p, idx) => {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                ctx.fillStyle = p.color;
+                ctx.fill();
+
+                p.y += p.speedY;
+                p.x += p.speedX;
+
+                if (p.y > canvas.height) particles[idx].y = 0;
+            });
+            requestAnimationFrame(animateCanvas);
+        }
+        animateCanvas();
+
+        // SIMULATOR CONTROLLERS
+        function showHapticBadge(text) {
+            const badge = document.getElementById('haptic-badge');
+            document.getElementById('haptic-text').innerText = text;
+            badge.style.opacity = '1';
+            setTimeout(() => { badge.style.opacity = '0'; }, 1500);
+        }
+
+        function triggerVibration(pattern) {
+            if ('vibrate' in navigator) {
+                navigator.vibrate(pattern);
+            }
+            showHapticBadge('HAPTIC MOTOR PULSE');
+        }
+
+        function triggerWaterEffect() {
+            createParticles('water');
+            showHapticBadge('MIST JET ACTIVE');
+        }
+
+        function triggerWindEffect() {
+            createParticles('wind');
+            showHapticBadge('WIND GUST BURST');
+        }
+
+        function triggerEffect(preset) {
+            const seat = document.getElementById('seat-graphics');
+            if (preset === 'topgun') {
+                seat.style.transform = 'rotate(-15deg) translateY(-20px)';
+                triggerVibration([200, 100, 300, 100, 500]);
+                triggerWindEffect();
+            } else if (preset === 'avatar') {
+                seat.style.transform = 'rotate(5deg) translateY(10px)';
+                triggerWaterEffect();
+                triggerVibration([100, 50, 100]);
+            } else if (preset === 'oppenheimer') {
+                seat.style.transform = 'scale(1.1) rotate(2deg)';
+                triggerVibration([800]);
+                showHapticBadge('SUB-BASS EXPLOSION');
+            } else if (preset === 'madmax') {
+                seat.style.transform = 'translate(5px, 5px)';
+                triggerVibration([100, 100, 100, 100, 100, 100]);
+                triggerWindEffect();
+            }
+
+            setTimeout(() => {
+                seat.style.transform = 'rotate(0deg) translateY(0px) scale(1)';
+            }, 1200);
+        }
+
+        // WEBXR / THREE.JS 3D VR THEATER SETUP FOR PS VR2
+        let scene, camera, renderer, xrSession;
+
+        function initVR() {
+            const holder = document.getElementById('vr-canvas-holder');
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.xr.enabled = true;
+            holder.appendChild(renderer.domElement);
+
+            // Cinema Screen Box
+            const screenGeo = new THREE.PlaneGeometry(16, 9);
+            const screenMat = new THREE.MeshBasicMaterial({ color: 0x00F0FF, side: THREE.DoubleSide });
+            const screen = new THREE.Mesh(screenGeo, screenMat);
+            screen.position.set(0, 2, -10);
+            scene.add(screen);
+
+            // Ambient Cinema Light
+            const light = new THREE.DirectionalLight(0xffffff, 1);
+            light.position.set(0, 5, 5);
+            scene.add(light);
+
+            camera.position.set(0, 0, 0);
+
+            renderer.setAnimationLoop(() => {
+                renderer.render(scene, camera);
+            });
+        }
+
+        function toggleVRMode() {
+            const container = document.getElementById('vr-container');
+            if (container.classList.contains('hidden')) {
+                container.classList.remove('hidden');
+                if (!renderer) initVR();
+            } else {
+                container.classList.add('hidden');
+            }
+        }
+
+        // INIT ON LOAD
+        renderMovies();
+        generateSeats();
+    </script>
+</body>
+</html>
